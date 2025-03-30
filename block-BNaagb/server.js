@@ -1,6 +1,5 @@
 const express = require('express');
 const redis = require("redis");
-const axios = require("axios");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -32,10 +31,10 @@ app.get('/', (req, res) => {
 });
 
 app.get('/person/:id', async (req, res) => {
-    const {id} = req.params
-    let url = baseUrl 
-    if(id){
-        url =  baseUrl+id+"/"
+    const { id } = req.params
+    let url = baseUrl
+    if (id) {
+        url = baseUrl + id + "/"
     }
     try {
         const cachedData = await client.get(url);
@@ -45,7 +44,17 @@ app.get('/person/:id', async (req, res) => {
         }
 
         console.log("🚀 Cache miss! Fetching from API...");
-        const response = await axios.get(url);
+        const response = await fetch(url).then(res => {
+            if (!res.ok) {
+                throw new Error(`HTTP error! status: ${res.status}`);
+            }
+            return res.json();
+        }
+        );
+        if (!response || !response.data) {
+            throw new Error('Invalid response from API');
+        }
+        console.log("✅ Data fetched from API!");
 
         // Store the response in Redis with an expiration time of 1 hour
         await client.setEx(url, 60 * 60, JSON.stringify(response.data));
